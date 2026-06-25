@@ -767,6 +767,7 @@ input{font-family:inherit}
 <script>
 
 
+
 var _currentStLeague = "PL";
 var _currentScLeague = "PL";
 
@@ -1145,48 +1146,101 @@ function onIncompletePayment(payment) {
 
 function buyCopaPass() {
   if (isCopaPass) { toast('Copa Pass already active!'); return; }
-  var btn=document.getElementById('copa-pass-btn');
-  if (btn) { btn.textContent='Processing...'; btn.disabled=true; }
-  if (typeof Pi==='undefined') { toast('Open in Pi Browser'); if(btn){btn.textContent='Get Copa Pass — 1π';btn.disabled=false;} return; }
-  Pi.createPayment({ amount:1, memo:'Copa Pass — CopaAmerica', metadata:{type:'copa_pass',app:'copaamerica-testnet.pi',network:'testnet'} }, {
-    onReadyForServerApproval: function(paymentId){
-      return fetch(_APPROVE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:paymentId,expectedAmount:1})})
-        .then(function(r){ return r.json(); }).then(function(d){ console.log('[Copa] Approved:',d); });
+  var btn = document.getElementById('ca-pass-btn');
+  if (btn) { btn.textContent = 'Processing...'; btn.disabled = true; }
+  if (typeof Pi === 'undefined') {
+    toast('Open in Pi Browser to purchase');
+    if (btn) { btn.textContent = 'Get Copa Pass — 1π'; btn.disabled = false; }
+    return;
+  }
+  Pi.createPayment({
+    amount:   1,
+    memo:     'Copa Pass — CopaAmerica',
+    metadata: { type:'copa_pass', app:'copaamerica-testnet.pi', network:'testnet' },
+  }, {
+    onReadyForServerApproval: function(paymentId) {
+      console.log('[CopaAmerica/testnet] onReadyForServerApproval:', paymentId);
+      return fetch(_APPROVE, {
+        method:  'POST',
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ paymentId: paymentId }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { console.log('[CopaAmerica/testnet] approved:', d); });
     },
-    onReadyForServerCompletion: function(paymentId,txid){
-      return fetch(_COMPLETE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:paymentId,txid:txid})})
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          isCopaPass=true; localStorage.setItem('ca_pass','1');
-          addTx('Copa Pass 1π txid:'+txid.slice(0,12)+'...');
-          showPaymentStatus('success','Copa Pass activated!');
-          renderCopaPassStatus(); toast('Copa Pass activated!');
-        }).catch(function(err){ showPaymentStatus('failed','Error — try again'); if(btn){btn.textContent='Get Copa Pass — 1π';btn.disabled=false;} });
+    onReadyForServerCompletion: function(paymentId, txid) {
+      console.log('[CopaAmerica/testnet] onReadyForServerCompletion:', paymentId, txid);
+      return fetch(_COMPLETE, {
+        method:  'POST',
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ paymentId: paymentId, txid: txid }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        console.log('[CopaAmerica/testnet] completed:', d);
+        isCopaPass = true;
+        localStorage.setItem('ca_pass', '1');
+        addTx('Copa Pass 1π txid:' + txid.slice(0,12) + '...');
+        renderPassStatus();
+        toast('?? Copa Pass activated! [TESTNET]');
+        if (btn) { btn.textContent = 'Get Copa Pass — 1π'; btn.disabled = false; }
+      })
+      .catch(function(err) {
+        console.error('[CopaAmerica/testnet] complete error:', err);
+        if (btn) { btn.textContent = 'Get Copa Pass — 1π'; btn.disabled = false; }
+      });
     },
-    onCancel: function(){ if(btn){btn.textContent='Get Copa Pass — 1π';btn.disabled=false;} showPaymentStatus('cancelled'); toast('Cancelled'); },
-    onError:  function(err){ console.error(err); if(btn){btn.textContent='Get Copa Pass — 1π';btn.disabled=false;} showPaymentStatus('failed','Error'); }
+    onCancel: function(paymentId) {
+      console.log('[CopaAmerica/testnet] cancelled:', paymentId);
+      toast('Payment cancelled');
+      if (btn) { btn.textContent = 'Get Copa Pass — 1π'; btn.disabled = false; }
+    },
+    onError: function(error, payment) {
+      console.error('[CopaAmerica/testnet] payment error:', error);
+      toast('Payment error — try again');
+      if (btn) { btn.textContent = 'Get Copa Pass — 1π'; btn.disabled = false; }
+    },
   });
 }
 
-function _doSendPi(to,amt,memo) {
-  if (!to.trim()) { toast('Enter recipient'); return; }
-  if (!amt||amt<=0) { toast('Enter amount'); return; }
-  if (typeof Pi==='undefined') { toast('Open in Pi Browser'); return; }
-  Pi.createPayment({ amount:amt, memo:memo||'Copa.pi fan tip', metadata:{type:'send',app:'copaamerica-testnet.pi',network:'testnet'} }, {
-    onReadyForServerApproval: function(paymentId){
-      return fetch(_APPROVE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:paymentId})})
-        .then(function(r){ return r.json(); }).then(function(d){ console.log('[Copa] Send approved:',d); });
+function _doSendPi(to, amt, memo) {
+  if (!to || !to.trim()) { toast('Enter recipient username'); return; }
+  if (!amt || amt <= 0)   { toast('Enter valid amount'); return; }
+  if (typeof Pi === 'undefined') { toast('Open in Pi Browser'); return; }
+  Pi.createPayment({
+    amount:   amt,
+    memo:     memo || 'CopaAmerica tip',
+    metadata: { type:'send', app:'copaamerica-testnet.pi', network:'testnet' },
+  }, {
+    onReadyForServerApproval: function(paymentId) {
+      console.log('[CopaAmerica/testnet] send approve:', paymentId);
+      return fetch(_APPROVE, {
+        method:  'POST',
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ paymentId: paymentId }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { console.log('[CopaAmerica/testnet] send approved:', d); });
     },
-    onReadyForServerCompletion: function(paymentId,txid){
-      return fetch(_COMPLETE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paymentId:paymentId,txid:txid})})
-        .then(function(r){ return r.json(); })
-        .then(function(){
-          addTx(amt+'π sent to @'+to); showPaymentStatus('success',amt+'π sent!'); toast(amt+'π sent!');
-          var te=document.getElementById('copa-send-to'); if(te) te.value='';
-        }).catch(function(){ addTx(amt+'π sent'); toast('Sent!'); });
+    onReadyForServerCompletion: function(paymentId, txid) {
+      return fetch(_COMPLETE, {
+        method:  'POST',
+        headers: { 'Content-Type':'application/json' },
+        body:    JSON.stringify({ paymentId: paymentId, txid: txid }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        addTx(amt + 'π sent txid:' + txid.slice(0,8) + '...');
+        toast(amt + 'π sent! [TESTNET]');
+      })
+      .catch(function(err) {
+        console.error('[CopaAmerica/testnet] send complete error:', err);
+        addTx(amt + 'π sent [testnet]');
+        toast('Sent! [TESTNET]');
+      });
     },
-    onCancel: function(){ showPaymentStatus('cancelled'); toast('Cancelled'); },
-    onError:  function(err){ console.error(err); showPaymentStatus('failed','Error'); }
+    onCancel: function() { toast('Cancelled'); },
+    onError:  function(err) { console.error('[CopaAmerica/testnet] send error:', err); toast('Payment error'); },
   });
 }
 
@@ -1647,6 +1701,7 @@ function renderEvents(d) {
   html += '</div>';
   return html;
 }
+
 
 
 </script>
